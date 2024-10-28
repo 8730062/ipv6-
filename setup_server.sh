@@ -77,7 +77,7 @@ function setup_app() {
 
     # 下载 app.py 到应用程序目录
     echo "下载 app.py..."
-    curl -fsSL https://raw.githubusercontent.com/yourusername/yourrepo/main/app.py -o $APP_DIR/app.py
+    curl -fsSL https://raw.githubusercontent.com/8730062/ipv6-/refs/heads/main/app.py -o $APP_DIR/app.py
 
     echo "创建 Python 虚拟环境..."
     cd $APP_DIR
