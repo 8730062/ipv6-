@@ -13,24 +13,31 @@ DEFAULT_APP_HOST="::"
 DEFAULT_APP_DIR="/opt/vnstat_api"
 DEFAULT_PYTHON_VERSION="python3"
 
-# 欢迎信息
-echo "欢迎使用 vnStat API 一键安装脚本！"
-
-# 提示用户进行配置
-
-read -p "请输入 Flask 应用程序监听的地址（默认：$DEFAULT_APP_HOST）： " APP_HOST
-APP_HOST=${APP_HOST:-$DEFAULT_APP_HOST}
-
-read -p "请输入 Flask 应用程序监听的端口（默认：$DEFAULT_APP_PORT）： " APP_PORT
-APP_PORT=${APP_PORT:-$DEFAULT_APP_PORT}
-
-read -p "请输入应用程序安装的目录（默认：$DEFAULT_APP_DIR）： " APP_DIR
-APP_DIR=${APP_DIR:-$DEFAULT_APP_DIR}
-
-read -p "请输入要使用的 Python 版本（默认：$DEFAULT_PYTHON_VERSION）： " PYTHON_VERSION
-PYTHON_VERSION=${PYTHON_VERSION:-$DEFAULT_PYTHON_VERSION}
-
 # 函数定义
+
+function show_menu() {
+    echo "欢迎使用 vnStat API 一键安装脚本！"
+    echo "请选择要执行的操作："
+    echo "1) 安装"
+    echo "2) 卸载"
+    echo "3) 退出"
+    read -p "请输入选项 [1-3]: " choice
+    case $choice in
+        1)
+            main
+            ;;
+        2)
+            uninstall
+            ;;
+        3)
+            exit 0
+            ;;
+        *)
+            echo "无效的选项，请重试。"
+            show_menu
+            ;;
+    esac
+}
 
 function install_packages() {
     echo "更新软件包列表..."
@@ -54,11 +61,11 @@ function setup_vnstat() {
 
     for interface in $interfaces; do
         # 检查 vnStat 是否监控该接口
-        if ! sudo vnstat --iflist | grep -w "$interface" > /dev/null; then
+        if ! sudo vnstat -i $interface > /dev/null 2>&1; then
             echo "将接口 $interface 添加到 vnStat..."
 
             # 为接口创建数据库
-            sudo vnstat -u -i $interface
+            sudo vnstat -i $interface --create
         else
             echo "接口 $interface 已由 vnStat 监控。"
         fi
@@ -131,7 +138,40 @@ function open_firewall_port() {
     fi
 }
 
+function uninstall() {
+    echo "正在卸载 vnStat API 服务..."
+
+    # 停止并禁用服务
+    sudo systemctl stop vnstat_api.service
+    sudo systemctl disable vnstat_api.service
+
+    # 删除服务文件
+    sudo rm -f /etc/systemd/system/vnstat_api.service
+
+    # 重新加载 systemd 守护进程
+    sudo systemctl daemon-reload
+
+    # 删除应用程序目录
+    sudo rm -rf $APP_DIR
+
+    echo "卸载完成。"
+}
+
 function main() {
+    # 提示用户进行配置
+
+    read -p "请输入 Flask 应用程序监听的地址（默认：$DEFAULT_APP_HOST）： " APP_HOST_INPUT
+    APP_HOST=${APP_HOST_INPUT:-$DEFAULT_APP_HOST}
+
+    read -p "请输入 Flask 应用程序监听的端口（默认：$DEFAULT_APP_PORT）： " APP_PORT_INPUT
+    APP_PORT=${APP_PORT_INPUT:-$DEFAULT_APP_PORT}
+
+    read -p "请输入应用程序安装的目录（默认：$DEFAULT_APP_DIR）： " APP_DIR_INPUT
+    APP_DIR=${APP_DIR_INPUT:-$DEFAULT_APP_DIR}
+
+    read -p "请输入要使用的 Python 版本（默认：$DEFAULT_PYTHON_VERSION）： " PYTHON_VERSION_INPUT
+    PYTHON_VERSION=${PYTHON_VERSION_INPUT:-$DEFAULT_PYTHON_VERSION}
+
     install_packages
     setup_vnstat
     setup_app
@@ -142,4 +182,4 @@ function main() {
     echo "您可以通过 http://[您的IPv6地址]:$APP_PORT/api/traffic 访问它。"
 }
 
-main
+show_menu
